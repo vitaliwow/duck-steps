@@ -42,7 +42,6 @@ class HandleOlist:
         handle_geolocation(self.connection)
         handle_order_payments(self.connection)
         handle_order_reviews(self.connection)
-        handle_orders(self.connection)
         handle_products(self.connection)
         handle_sellers(self.connection)
         handle_product_category_name_translation(self.connection)

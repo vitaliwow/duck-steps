@@ -59,24 +59,6 @@ def handle_order_reviews(connection: duckdb.DuckDBPyConnection):
     """
     return handle_table(connection, table_name, sql_create, csv_path)
 
-
-def handle_orders(connection: duckdb.DuckDBPyConnection):
-    table_name = "orders"
-    csv_path = "dataset/olist_orders_dataset.csv"
-    sql_create = f"""CREATE TABLE IF NOT EXISTS {table_name} (
-            order_id VARCHAR(100) PRIMARY KEY,
-            customer_id VARCHAR(100),
-            order_status VARCHAR(50),
-            order_purchase_timestamp TIMESTAMP,
-            order_approved_at TIMESTAMP,
-            order_delivered_carrier_date TIMESTAMP,
-            order_delivered_customer_date TIMESTAMP,
-            order_estimated_delivery_date TIMESTAMP
-        )
-    """
-    return handle_table(connection, table_name, sql_create, csv_path)
-
-
 def handle_products(connection: duckdb.DuckDBPyConnection):
     table_name = "products"
     csv_path = "dataset/olist_products_dataset.csv"
