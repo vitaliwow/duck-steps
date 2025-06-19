@@ -1,5 +1,5 @@
 ANALYTIC_QUERIES = {
-    "user_rating": """
+    "most_valuable_customers": """
             WITH ranked_customers AS (
                 SELECT 
                     foi.customer_id,

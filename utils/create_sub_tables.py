@@ -30,24 +30,6 @@ def handle_geolocation(connection: duckdb.DuckDBPyConnection):
     return handle_table(connection, table_name, sql_create, csv_path)
 
 
-def handle_order_items(connection: duckdb.DuckDBPyConnection):
-    table_name = "order_items"
-    csv_path = "dataset/olist_order_items_dataset.csv"
-
-    sql_create = f"""CREATE TABLE IF NOT EXISTS {table_name} (
-        order_id VARCHAR(100),
-        order_item_id INT,
-        product_id VARCHAR(100),
-        seller_id VARCHAR(100),
-        shipping_limit_date TIMESTAMP,
-        price FLOAT,
-        freight_value FLOAT,
-        UNIQUE (order_id, order_item_id)
-    )
-    """
-    return handle_table(connection, table_name, sql_create, csv_path)
-
-
 def handle_order_payments(connection: duckdb.DuckDBPyConnection):
     table_name = "order_payments"
     csv_path = "dataset/olist_order_payments_dataset.csv"

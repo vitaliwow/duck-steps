@@ -6,7 +6,6 @@ import duckdb
 from queries import ANALYTIC_QUERIES
 from utils.create_sub_tables import (
     handle_geolocation,
-    handle_order_items,
     handle_order_payments,
     handle_order_reviews,
     handle_orders,
@@ -18,7 +17,13 @@ from utils.create_sub_tables import (
 
 class TableNames(StrEnum):
     FACTS_ORDER_ITEMS = "facts_order_items"
+    # Base tables
     CUSTOMERS = "customers"
+    ORDER_ITEMS = "order_items"
+    ORDERS = "orders"
+    # Analytics tables
+    MOST_VALUABLE_CUSTOMERS = "most_valuable_customers"
+    ROLLING_QUARTERS = "rolling_quarters"
 
 
 class OrderStatus(StrEnum):
@@ -33,8 +38,8 @@ class HandleOlist:
 
     def create_sub_tables(self) -> None:
         self.create_customer_table()
+        self.create_order_items_table()
         handle_geolocation(self.connection)
-        handle_order_items(self.connection)
         handle_order_payments(self.connection)
         handle_order_reviews(self.connection)
         handle_orders(self.connection)
@@ -46,7 +51,6 @@ class HandleOlist:
         query = self.create_queries[TableNames.FACTS_ORDER_ITEMS.value]
         self.handle_query(query)
 
-    def fill_facts_table(self) -> None:
         insert_facts_table_query = f"""
             INSERT INTO {TableNames.FACTS_ORDER_ITEMS.value}
             SELECT
@@ -58,8 +62,8 @@ class HandleOlist:
                 ordi.price,
                 ord.order_status,
                 ord.order_delivered_customer_date
-            FROM read_csv('dataset/olist_order_items_dataset.csv') as ordi
-            LEFT JOIN read_csv('dataset/olist_orders_dataset.csv') as ord
+            FROM {TableNames.ORDER_ITEMS.value} as ordi
+            LEFT JOIN {TableNames.ORDERS.value} as ord
                 ON ord.order_id = ordi.order_id
             """
         self.handle_query(insert_facts_table_query)
@@ -70,17 +74,20 @@ class HandleOlist:
         - for total orders - 0,4
         - for last date - 0,2, 0,1, 0,5 or 0
         """
-        select_query = ANALYTIC_QUERIES["user_rating"]
+        table_name = TableNames.MOST_VALUABLE_CUSTOMERS.value
+
+        select_query = ANALYTIC_QUERIES[table_name]
         result_query = f"""
-            CREATE TABLE IF NOT EXISTS most_valuable_customers AS
+            CREATE TABLE IF NOT EXISTS {TableNames.MOST_VALUABLE_CUSTOMERS.value} AS
             {select_query}
         """
         self.handle_query(result_query)
 
     def create_three_month_user_purchases(self) -> None:
-        select_query = ANALYTIC_QUERIES["rolling_quarters"]
+        table_name = TableNames.ROLLING_QUARTERS.value
+        select_query = ANALYTIC_QUERIES[table_name]
         result_query = f"""
-            CREATE TABLE IF NOT EXISTS rolling_quarters AS
+            CREATE TABLE IF NOT EXISTS {table_name} AS
             {select_query}
         """
         self.handle_query(result_query)
@@ -120,6 +127,51 @@ class HandleOlist:
         csv_path = "dataset/olist_customers_dataset.csv"
         insert_query = f"""
             INSERT INTO {TableNames.CUSTOMERS.value} 
+                SELECT * FROM read_csv('{csv_path}')
+            ON CONFLICT DO NOTHING
+        """
+        self.handle_query(insert_query)
+
+    def create_order_items_table(self) -> None:
+        table_name = TableNames.ORDER_ITEMS.value
+        sql_create = f"""CREATE TABLE IF NOT EXISTS {table_name} (
+            order_id VARCHAR(100),
+            order_item_id INT,
+            product_id VARCHAR(100),
+            seller_id VARCHAR(100),
+            shipping_limit_date TIMESTAMP,
+            price FLOAT,
+            freight_value FLOAT,
+            UNIQUE (order_id, order_item_id)
+        )
+        """
+        self.handle_query(sql_create)
+
+        csv_path = "dataset/olist_order_items_dataset.csv"
+        insert_query = f"""
+            INSERT INTO {table_name} 
+                SELECT * FROM read_csv('{csv_path}')
+            ON CONFLICT DO NOTHING
+        """
+        self.handle_query(insert_query)
+
+    def create_order_table(self) -> None:
+        table_name = TableNames.ORDERS.value
+        sql_create = f"""CREATE TABLE IF NOT EXISTS {table_name} (
+                order_id VARCHAR(100) PRIMARY KEY,
+                customer_id VARCHAR(100),
+                order_status VARCHAR(50),
+                order_purchase_timestamp TIMESTAMP,
+                order_approved_at TIMESTAMP,
+                order_delivered_carrier_date TIMESTAMP,
+                order_delivered_customer_date TIMESTAMP,
+                order_estimated_delivery_date TIMESTAMP
+            )
+        """
+        self.handle_query(sql_create)
+        csv_path = "dataset/olist_orders_dataset.csv"
+        insert_query = f"""
+            INSERT INTO {table_name} 
                 SELECT * FROM read_csv('{csv_path}')
             ON CONFLICT DO NOTHING
         """
