@@ -14,4 +14,6 @@ if __name__ == "__main__":
 
         # create dimensions
         # get the most valuable customers
-        handler.create_most_valuable_customers_dim()
+        handler.create_most_valuable_customers()
+        # get the most valuable products
+        handler.create_three_month_user_purchases()

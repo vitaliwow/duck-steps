@@ -8,7 +8,8 @@ def handle_table(
     csv_path: str,
 ):
     connection.sql(sql_create)
-    connection.sql(f"INSERT INTO {table_name} SELECT * FROM read_csv('{csv_path}') ON CONFLICT DO NOTHING"
+    connection.sql(
+        f"INSERT INTO {table_name} SELECT * FROM read_csv('{csv_path}') ON CONFLICT DO NOTHING"
     )
     connection.table(table_name).show()
 

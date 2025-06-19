@@ -3,18 +3,29 @@ from enum import StrEnum
 
 import duckdb
 
-from utils.create_sub_tables import handle_geolocation, handle_order_items, handle_order_payments, \
-    handle_order_reviews, handle_orders, handle_products, handle_sellers, handle_product_category_name_translation
+from queries import ANALYTIC_QUERIES
+from utils.create_sub_tables import (
+    handle_geolocation,
+    handle_order_items,
+    handle_order_payments,
+    handle_order_reviews,
+    handle_orders,
+    handle_products,
+    handle_sellers,
+    handle_product_category_name_translation,
+)
 
 
 class TableNames(StrEnum):
     FACTS_ORDER_ITEMS = "facts_order_items"
     CUSTOMERS = "customers"
 
+
 class OrderStatus(StrEnum):
     DELIVERED = "delivered"
     CANCELED = "canceled"
     PROCESSING = "processing"
+
 
 @dataclass
 class HandleOlist:
@@ -53,99 +64,24 @@ class HandleOlist:
             """
         self.handle_query(insert_facts_table_query)
 
-    def create_most_valuable_customers_dim(self) -> None:
-        rfm_query = """
-        WITH analysis_date AS (
-            SELECT DATE '2025-03-19' AS today
-        ),
-        rfm_base AS (
-            SELECT
-                ord.customer_id,
-                MAX(ord.order_delivered_customer_date) AS last_order_date,
-                COUNT(*) AS frequency,
-                SUM(oi.price) AS monetary
-            FROM orders AS ord
-            INNER JOIN order_items AS oi 
-                ON oi.order_id = ord.order_id
-            GROUP BY ord.customer_id
-            HAVING last_order_date IS NOT NULL
-        ),
-        rfm_metrics AS (
-            SELECT
-                b.customer_id,
-                DATE_PART('day', a.today - b.last_order_date) AS recency,
-                b.frequency,
-                b.monetary
-            FROM rfm_base b
-            CROSS JOIN analysis_date a
-        ),
-        percentiles AS (
-            SELECT
-                PERCENTILE_CONT(0.2) WITHIN GROUP (ORDER BY recency) AS recency_p20,
-                PERCENTILE_CONT(0.4) WITHIN GROUP (ORDER BY recency) AS recency_p40,
-                PERCENTILE_CONT(0.6) WITHIN GROUP (ORDER BY recency) AS recency_p60,
-                PERCENTILE_CONT(0.8) WITHIN GROUP (ORDER BY recency) AS recency_p80,
-                PERCENTILE_CONT(0.2) WITHIN GROUP (ORDER BY frequency) AS frequency_p20,
-                PERCENTILE_CONT(0.4) WITHIN GROUP (ORDER BY frequency) AS frequency_p40,
-                PERCENTILE_CONT(0.6) WITHIN GROUP (ORDER BY frequency) AS frequency_p60,
-                PERCENTILE_CONT(0.8) WITHIN GROUP (ORDER BY frequency) AS frequency_p80,
-                PERCENTILE_CONT(0.2) WITHIN GROUP (ORDER BY monetary) AS monetary_p20,
-                PERCENTILE_CONT(0.4) WITHIN GROUP (ORDER BY monetary) AS monetary_p40,
-                PERCENTILE_CONT(0.6) WITHIN GROUP (ORDER BY monetary) AS monetary_p60,
-                PERCENTILE_CONT(0.8) WITHIN GROUP (ORDER BY monetary) AS monetary_p80
-            FROM rfm_metrics
-        ),
-        rfm_binned AS (
-            SELECT
-                r.customer_id,
-                CASE
-                    WHEN r.recency <= p.recency_p20 THEN 5
-                    WHEN r.recency <= p.recency_p40 THEN 4
-                    WHEN r.recency <= p.recency_p60 THEN 3
-                    WHEN r.recency <= p.recency_p80 THEN 2
-                    ELSE 1
-                END AS r_score,
-                CASE
-                    WHEN r.frequency <= p.frequency_p20 THEN 1
-                    WHEN r.frequency <= p.frequency_p40 THEN 2
-                    WHEN r.frequency <= p.frequency_p60 THEN 3
-                    WHEN r.frequency <= p.frequency_p80 THEN 4
-                    ELSE 5
-                END AS f_score,
-                CASE
-                    WHEN r.monetary <= p.monetary_p20 THEN 1
-                    WHEN r.monetary <= p.monetary_p40 THEN 2
-                    WHEN r.monetary <= p.monetary_p60 THEN 3
-                    WHEN r.monetary <= p.monetary_p80 THEN 4
-                    ELSE 5
-                END AS m_score
-            FROM rfm_metrics r
-            CROSS JOIN percentiles p
-        )
-        SELECT
-            customer_id,
-            ROUND((r_score + f_score + m_score) / 15 * 10,2) as rating
-        FROM rfm_binned;
+    def create_most_valuable_customers(self) -> None:
+        """Base entity values are:
+        - for total spent amount - 0,4
+        - for total orders - 0,4
+        - for last date - 0,2, 0,1, 0,5 or 0
         """
-
-        rfm_results = self.connection.sql(query=rfm_query)
-        self.connection.register("rfm_binned", rfm_results)
-
-        result_query = """
+        select_query = ANALYTIC_QUERIES["user_rating"]
+        result_query = f"""
             CREATE TABLE IF NOT EXISTS most_valuable_customers AS
-            SELECT
-                foi.customer_id,
-                SUM(foi.price) AS total_spent,
-                COUNT(DISTINCT foi.order_id) AS total_orders, 
-                MAX(foi.order_delivered_customer_date) AS last_order_date,
-                rfm.rating
-            FROM facts_order_items foi
-            INNER JOIN rfm_binned rfm
-                ON rfm.customer_id = foi.customer_id
-            WHERE 
-                foi.order_status = 'delivered'
-                AND foi.order_delivered_customer_date IS NOT NULL
-            GROUP BY foi.customer_id, rfm.rating
+            {select_query}
+        """
+        self.handle_query(result_query)
+
+    def create_three_month_user_purchases(self) -> None:
+        select_query = ANALYTIC_QUERIES["rolling_quarters"]
+        result_query = f"""
+            CREATE TABLE IF NOT EXISTS rolling_quarters AS
+            {select_query}
         """
         self.handle_query(result_query)
 
@@ -187,5 +123,4 @@ class HandleOlist:
                 SELECT * FROM read_csv('{csv_path}')
             ON CONFLICT DO NOTHING
         """
-
         self.handle_query(insert_query)
