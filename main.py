@@ -7,9 +7,13 @@ if __name__ == "__main__":
     with duckdb.connect("olist.db") as conn:
         handler = HandleOlist(connection=conn)
 
-        # create facts table and fill it
+        # create transfer csv to duckdb tables
         handler.create_sub_tables()
+
+        # create facts table and fill it
         handler.create_facts_table()
+
+        # create staging layer tables
 
         # create analytical tables
         # get the most valuable customers
