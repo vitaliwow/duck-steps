@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import duckdb
 
 from enum_models import TableNames, TableOperations
-from queries import ANALYTIC_QUERIES, FACTS_QUERIES
+from queries import ANALYTIC_QUERIES, FACTS_QUERIES, STAGING_QUERIES
 from utils.create_sub_tables import (
     handle_geolocation,
     handle_order_payments,
@@ -22,6 +22,8 @@ class HandleOlist:
         self.create_customer_table()
         self.create_order_items_table()
         self.create_order_table()
+
+        # # TODO change this to methods
         handle_geolocation(self.connection)
         handle_order_payments(self.connection)
         handle_order_reviews(self.connection)
@@ -38,24 +40,32 @@ class HandleOlist:
         insert_facts_table_query = FACTS_QUERIES[TableNames.FACTS_ORDER_ITEMS][TableOperations.INSERT]
         self.handle_query(insert_facts_table_query)
 
-    def create_most_valuable_customers(self) -> None:
-        """Base entity values are:
-        - for total spent amount - 0,4
-        - for total orders - 0,4
-        - for last date - 0,2, 0,1, 0,5 or 0
-        """
-        table_name = TableNames.ANALYTICS_MOST_VALUABLE_CUSTOMERS.value
+    def create_staging_tables(self) -> None:
+        self.create_staging_customer_deliveries()
 
-        select_query = ANALYTIC_QUERIES[table_name]
-        result_query = f"""
-            CREATE TABLE IF NOT EXISTS {TableNames.ANALYTICS_MOST_VALUABLE_CUSTOMERS.value} AS
-            {select_query}
-        """
-        self.handle_query(result_query)
+    def create_staging_customer_deliveries(self) -> None:
+        table = TableNames.STAGING_CUSTOMERS_DELIVERIES
+        select_query = STAGING_QUERIES[table]
+
+        self.create_table_from_select(select_query, table.value)
+
+    def create_analytical_tables(self) -> None:
+        self.create_most_valuable_customers()
+        self.create_three_month_user_purchases()
+
+    def create_most_valuable_customers(self) -> None:
+        table = TableNames.ANALYTICS_MOST_VALUABLE_CUSTOMERS
+        select_query = ANALYTIC_QUERIES[table]
+
+        self.create_table_from_select(select_query, table.value)
 
     def create_three_month_user_purchases(self) -> None:
-        table_name = TableNames.ANALYTICS_ROLLING_QUARTERS.value
-        select_query = ANALYTIC_QUERIES[table_name]
+        table = TableNames.ANALYTICS_ROLLING_QUARTERS
+        select_query = ANALYTIC_QUERIES[table]
+
+        self.create_table_from_select(select_query, table.value)
+
+    def create_table_from_select(self, select_query: str, table_name) -> None:
         result_query = f"""
             CREATE TABLE IF NOT EXISTS {table_name} AS
             {select_query}

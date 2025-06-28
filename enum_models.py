@@ -9,10 +9,11 @@ class TableNames(StrEnum):
     # Facts tables
     FACTS_ORDER_ITEMS = "facts_order_items"
     # Staging tables
-    STAGING_RANKED_CUSTOMERS = "staging_ranked_customers"
+    STAGING_CUSTOMERS_DELIVERIES = "staging_customers_deliveries"
     # Analytics tables
     ANALYTICS_MOST_VALUABLE_CUSTOMERS = "analytics_most_valuable_customers"
     ANALYTICS_ROLLING_QUARTERS = "analytics_rolling_quarters"
+    ANALYTICS_TOP_PRODUCTS = "analytics_top_products"
 
 
 class TableOperations(StrEnum):

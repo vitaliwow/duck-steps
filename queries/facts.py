@@ -1,5 +1,6 @@
 from enum_models import TableNames, TableOperations
 
+
 FACTS_QUERIES = {
     TableNames.FACTS_ORDER_ITEMS: {
         TableOperations.CREATE: f"""
