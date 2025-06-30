@@ -9,7 +9,9 @@ STAGING_QUERIES = {
         foi.price,
         foi.order_id,
         foi.order_status,
-        foi.product_id
+        foi.product_id,
+        foi.order_purchase_timestamp,
+        foi.product_category_name_english
     FROM
         {TableNames.FACTS_ORDER_ITEMS.value} foi
     """

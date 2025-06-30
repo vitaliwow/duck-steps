@@ -3,14 +3,17 @@ from dataclasses import dataclass
 import duckdb
 
 from enum_models import TableNames, TableOperations
-from queries import ANALYTIC_QUERIES, FACTS_QUERIES, STAGING_QUERIES
+from queries import (
+    ANALYTIC_QUERIES,
+    FACTS_QUERIES,
+    SOURCE_QUERIES,
+    STAGING_QUERIES,
+)
 from utils.create_sub_tables import (
     handle_geolocation,
     handle_order_payments,
     handle_order_reviews,
-    handle_products,
     handle_sellers,
-    handle_product_category_name_translation,
 )
 
 
@@ -22,14 +25,14 @@ class HandleOlist:
         self.create_customer_table()
         self.create_order_items_table()
         self.create_order_table()
+        self.create_products_table()
+        self.create_product_category_name_translation_table()
 
         # # TODO change this to methods
         handle_geolocation(self.connection)
         handle_order_payments(self.connection)
         handle_order_reviews(self.connection)
-        handle_products(self.connection)
         handle_sellers(self.connection)
-        handle_product_category_name_translation(self.connection)
 
     def create_facts_table(self) -> None:
         # create table
@@ -52,6 +55,11 @@ class HandleOlist:
     def create_analytical_tables(self) -> None:
         self.create_most_valuable_customers()
         self.create_three_month_user_purchases()
+        self.create_top_ten_products()
+        self.create_raise_sales_gradient()
+        self.create_cumulative_product_sales()
+        self.create_daily_rebates()
+        self.create_avg_comparison()
 
     def create_most_valuable_customers(self) -> None:
         table = TableNames.ANALYTICS_MOST_VALUABLE_CUSTOMERS
@@ -65,6 +73,40 @@ class HandleOlist:
 
         self.create_table_from_select(select_query, table.value)
 
+    def create_top_ten_products(self) -> None:
+        # create top 10 products by sales in last quarter
+        table = TableNames.ANALYTICS_TOP_TEN_PRODUCTS_Q_SALES
+        select_query = ANALYTIC_QUERIES[table]
+
+        self.create_table_from_select(select_query, table.value)
+
+        # create top 10 products by sales in last quarter by category
+        table = TableNames.ANALYTICS_TOP_TEN_PRODUCTS_Q_BY_CATEGORY
+        select_query = ANALYTIC_QUERIES[table]
+        self.create_table_from_select(select_query, table.value)
+
+    def create_raise_sales_gradient(self) -> None:
+        # create table with top 5 product categories by sales
+        table = TableNames.ANALYTICS_RAISE_SALES_GRADIENT
+        select_query = ANALYTIC_QUERIES[table]
+
+        self.create_table_from_select(select_query, table.value)
+
+    def create_cumulative_product_sales(self) -> None:
+        # create cumulative product sales table
+        table = TableNames.ANALYTICS_CUMULATIVE_PRODUCT_SALES
+        select_query = ANALYTIC_QUERIES[table]
+
+        self.create_table_from_select(select_query, table.value)
+
+
+    def create_daily_rebates(self) -> None:
+        # create daily rebates table
+        table = TableNames.ANALYTICS_DAILY_REBATES
+        select_query = ANALYTIC_QUERIES[table]
+
+        self.create_table_from_select(select_query, table.value)
+
     def create_table_from_select(self, select_query: str, table_name) -> None:
         result_query = f"""
             CREATE TABLE IF NOT EXISTS {table_name} AS
@@ -72,28 +114,27 @@ class HandleOlist:
         """
         self.handle_query(result_query)
 
-    def handle_query(self, query: str) -> None:
-        self.connection.sql(query)
-
-    def create_customer_table(self) -> None:
-        table_name = TableNames.SRC_CUSTOMERS.value
-        sql_create = f"""CREATE TABLE IF NOT EXISTS {table_name} (
-            customer_id VARCHAR(100) UNIQUE,
-            customer_unique_id VARCHAR(100),
-            customer_zip_code_prefix VARCHAR(10),
-            customer_city VARCHAR(100),
-            customer_state VARCHAR(5)
-        )
-        """
-        self.handle_query(sql_create)
-
-        csv_path = "dataset/olist_customers_dataset.csv"
+    def insert_into_table(self, table_name: str, csv_path: str) -> None:
         insert_query = f"""
             INSERT INTO {table_name} 
                 SELECT * FROM read_csv('{csv_path}')
             ON CONFLICT DO NOTHING
         """
         self.handle_query(insert_query)
+
+    def handle_query(self, query: str) -> None:
+        self.connection.sql(query)
+
+    def create_customer_table(self) -> None:
+        table = TableNames.SRC_CUSTOMERS
+        sql_create = SOURCE_QUERIES[table][TableOperations.CREATE]
+        self.handle_query(sql_create)
+
+        self.handle_query(sql_create)
+        self.insert_into_table(
+            str(table.value),
+            csv_path="dataset/olist_customers_dataset.csv",
+        )
 
     def create_order_items_table(self) -> None:
         table_name = TableNames.SRC_ORDER_ITEMS.value
@@ -108,15 +149,12 @@ class HandleOlist:
             UNIQUE (order_id, order_item_id)
         )
         """
-        self.handle_query(sql_create)
 
-        csv_path = "dataset/olist_order_items_dataset.csv"
-        insert_query = f"""
-            INSERT INTO {table_name} 
-                SELECT * FROM read_csv('{csv_path}')
-            ON CONFLICT DO NOTHING
-        """
-        self.handle_query(insert_query)
+        self.handle_query(sql_create)
+        self.insert_into_table(
+            str(table_name),
+            csv_path="dataset/olist_order_items_dataset.csv",
+        )
 
     def create_order_table(self) -> None:
         table_name = TableNames.SRC_ORDERS.value
@@ -132,10 +170,24 @@ class HandleOlist:
             )
         """
         self.handle_query(sql_create)
-        csv_path = "dataset/olist_orders_dataset.csv"
-        insert_query = f"""
-            INSERT INTO {table_name} 
-                SELECT * FROM read_csv('{csv_path}')
-            ON CONFLICT DO NOTHING
-        """
-        self.handle_query(insert_query)
+        self.insert_into_table(
+            str(table_name),
+            csv_path="dataset/olist_orders_dataset.csv",
+        )
+
+    def create_products_table(self) -> None:
+        table = TableNames.SRC_PRODUCTS
+        sql_create = SOURCE_QUERIES[table][TableOperations.CREATE]
+
+        self.handle_query(sql_create)
+        self.insert_into_table(str(table.value), csv_path="dataset/olist_products_dataset.csv")
+
+    def create_product_category_name_translation_table(self) -> None:
+        table = TableNames.SRC_PRODUCTS_CATEGORIES_TRANSLATIONS
+        sql_create = SOURCE_QUERIES[table][TableOperations.CREATE]
+
+        self.handle_query(sql_create)
+        self.insert_into_table(
+            str(table.value),
+            csv_path="dataset/product_category_name_translation.csv",
+        )

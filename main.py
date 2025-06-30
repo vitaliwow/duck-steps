@@ -11,10 +11,10 @@ if __name__ == "__main__":
         # handler.create_sub_tables()
 
         # create facts table and fill it
-        handler.create_facts_table()
+        # handler.create_facts_table()
 
         # create staging layer tables
-        handler.create_staging_tables()
+        # handler.create_staging_tables()
 
         # create analytical tables
         handler.create_analytical_tables()

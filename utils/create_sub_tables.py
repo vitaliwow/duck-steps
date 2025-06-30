@@ -59,23 +59,6 @@ def handle_order_reviews(connection: duckdb.DuckDBPyConnection):
     """
     return handle_table(connection, table_name, sql_create, csv_path)
 
-def handle_products(connection: duckdb.DuckDBPyConnection):
-    table_name = "products"
-    csv_path = "dataset/olist_products_dataset.csv"
-    sql_create = f"""CREATE TABLE IF NOT EXISTS {table_name} (
-            product_id VARCHAR(100) PRIMARY KEY,
-            product_category_name VARCHAR(100),
-            product_name_lenght INT,
-            product_description_lenght INT,
-            product_photos_qty INT,
-            product_weight_g FLOAT,
-            product_length_cm FLOAT,
-            product_height_cm FLOAT,
-            product_width_cm FLOAT
-        )
-    """
-    return handle_table(connection, table_name, sql_create, csv_path)
-
 
 def handle_sellers(connection: duckdb.DuckDBPyConnection):
     table_name = "sellers"
@@ -85,17 +68,6 @@ def handle_sellers(connection: duckdb.DuckDBPyConnection):
             seller_zip_code_prefix VARCHAR(10),
             seller_city VARCHAR(100),
             seller_state VARCHAR(5)
-        )
-    """
-    return handle_table(connection, table_name, sql_create, csv_path)
-
-
-def handle_product_category_name_translation(connection: duckdb.DuckDBPyConnection):
-    table_name = "product_category_name_translation"
-    csv_path = "dataset/product_category_name_translation.csv"
-    sql_create = f"""CREATE TABLE IF NOT EXISTS {table_name} (
-            product_category_name VARCHAR(100) UNIQUE,
-            product_category_name_english VARCHAR(100)
         )
     """
     return handle_table(connection, table_name, sql_create, csv_path)
