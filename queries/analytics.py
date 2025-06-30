@@ -171,4 +171,83 @@ ANALYTIC_QUERIES = {
         from last_month_order_purchases
         GROUP BY day_of_month;
     """,
+    TableNames.ANALYTICS_DAILY_AVGS_STATES_COMPARISON: f"""
+        WITH date_ranges AS (
+            SELECT 
+                DATE_TRUNC('month', MAX(order_purchase_timestamp)) AS current_month_start,
+                DATE_TRUNC('month', MAX(order_purchase_timestamp)) - INTERVAL 1 MONTH AS prev_month_start,
+                DATE_TRUNC('month', MAX(order_purchase_timestamp)) - INTERVAL 2 MONTH AS two_months_ago_start
+            FROM {TableNames.STAGING_CUSTOMERS_DELIVERIES.value}
+        ),
+        current_month_stats AS (
+            SELECT
+                scd.seller_state,
+                AVG(scd.price) AS current_avg_order_value,
+                COUNT(DISTINCT scd.order_id) AS current_order_count
+            FROM {TableNames.STAGING_CUSTOMERS_DELIVERIES.value} scd
+            CROSS JOIN date_ranges
+            WHERE 
+                scd.order_purchase_timestamp >= date_ranges.current_month_start
+                AND scd.order_purchase_timestamp < date_ranges.current_month_start + INTERVAL 1 MONTH
+            GROUP BY scd.seller_state
+        ),
+        prev_month_stats AS (
+            SELECT
+                scd.seller_state,
+                AVG(scd.price) AS prev_avg_order_value,
+                COUNT(DISTINCT scd.order_id) AS prev_order_count
+            FROM {TableNames.STAGING_CUSTOMERS_DELIVERIES.value} scd
+            CROSS JOIN date_ranges
+            WHERE 
+                scd.order_purchase_timestamp >= date_ranges.prev_month_start
+                AND scd.order_purchase_timestamp < date_ranges.prev_month_start + INTERVAL 1 MONTH
+            GROUP BY scd.seller_state
+        )
+        SELECT
+            DISTINCT sl.seller_state AS state,
+            COALESCE(c.current_avg_order_value, 0) AS current_avg_order_value,
+            COALESCE(p.prev_avg_order_value, 0) AS prev_avg_order_value,
+            ROUND((COALESCE(c.current_avg_order_value, 0) - p.prev_avg_order_value) / p.prev_avg_order_value * 100, 2) AS percentage_change,
+        FROM {TableNames.STAGING_CUSTOMERS_DELIVERIES.value} sl
+        LEFT JOIN current_month_stats c ON sl.seller_state = c.seller_state
+        LEFT JOIN prev_month_stats p ON sl.seller_state = p.seller_state
+    """,
+    TableNames.ANALYTICS_SELLER_RATING: f"""
+        WITH date_range AS (
+            SELECT 
+                MAX(order_purchase_timestamp) - INTERVAL 1 YEAR AS start_date,
+                MAX(order_purchase_timestamp) AS end_date
+            FROM {TableNames.STAGING_CUSTOMERS_DELIVERIES.value}
+        ),
+        seller_metrics AS (
+            SELECT
+                seller_id,
+                SUM(price) AS total_revenue,
+                AVG(price) AS avg_rating
+            FROM {TableNames.STAGING_CUSTOMERS_DELIVERIES.value}
+            CROSS JOIN 
+                date_range
+            WHERE 
+                order_purchase_timestamp BETWEEN date_range.start_date AND date_range.end_date
+            GROUP BY 
+                seller_id
+        ),
+        seller_scores AS (
+            SELECT
+                seller_id,
+                PERCENT_RANK() OVER (ORDER BY total_revenue DESC) AS revenue_percentile,
+                PERCENT_RANK() OVER (ORDER BY avg_rating DESC) AS avg_rating
+            FROM 
+                seller_metrics
+        )
+        SELECT
+            seller_id,
+            ROW_NUMBER() OVER (
+                ORDER BY (0.5 * revenue_percentile + 0.5 * avg_rating) DESC
+            ) AS performance_rank
+        FROM 
+            seller_scores
+        ORDER BY 
+            performance_rank;
+    """
 }

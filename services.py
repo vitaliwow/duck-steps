@@ -10,10 +10,8 @@ from queries import (
     STAGING_QUERIES,
 )
 from utils.create_sub_tables import (
-    handle_geolocation,
     handle_order_payments,
     handle_order_reviews,
-    handle_sellers,
 )
 
 
@@ -27,12 +25,9 @@ class HandleOlist:
         self.create_order_table()
         self.create_products_table()
         self.create_product_category_name_translation_table()
+        self.create_sellers_table()
+        self.create_geolocation()
 
-        # # TODO change this to methods
-        handle_geolocation(self.connection)
-        handle_order_payments(self.connection)
-        handle_order_reviews(self.connection)
-        handle_sellers(self.connection)
 
     def create_facts_table(self) -> None:
         # create table
@@ -60,6 +55,7 @@ class HandleOlist:
         self.create_cumulative_product_sales()
         self.create_daily_rebates()
         self.create_avg_comparison()
+        self.create_sellers_rating()
 
     def create_most_valuable_customers(self) -> None:
         table = TableNames.ANALYTICS_MOST_VALUABLE_CUSTOMERS
@@ -99,6 +95,11 @@ class HandleOlist:
 
         self.create_table_from_select(select_query, table.value)
 
+    def create_sellers_rating(self) -> None:
+        table = TableNames.ANALYTICS_SELLER_RATING
+        select_query = ANALYTIC_QUERIES[table]
+
+        self.create_table_from_select(select_query, table.value)
 
     def create_daily_rebates(self) -> None:
         # create daily rebates table
@@ -114,7 +115,14 @@ class HandleOlist:
         """
         self.handle_query(result_query)
 
-    def insert_into_table(self, table_name: str, csv_path: str) -> None:
+    def create_avg_comparison(self) -> None:
+        # create average comparison table
+        table = TableNames.ANALYTICS_DAILY_AVGS_STATES_COMPARISON
+        select_query = ANALYTIC_QUERIES[table]
+
+        self.create_table_from_select(select_query, table.value)
+
+    def insert_into_table(self, table_name: str, csv_path: str, on_conflict: str | None = None) -> None:
         insert_query = f"""
             INSERT INTO {table_name} 
                 SELECT * FROM read_csv('{csv_path}')
@@ -190,4 +198,24 @@ class HandleOlist:
         self.insert_into_table(
             str(table.value),
             csv_path="dataset/product_category_name_translation.csv",
+        )
+
+    def create_sellers_table(self) -> None:
+        table = TableNames.SRC_SELLERS
+        sql_create = SOURCE_QUERIES[table][TableOperations.CREATE]
+
+        self.handle_query(sql_create)
+        self.insert_into_table(
+            str(table.value),
+            csv_path="dataset/olist_sellers_dataset.csv",
+        )
+
+    def create_geolocation(self)  -> None:
+        table = TableNames.SRC_GEO
+        sql_create = SOURCE_QUERIES[table][TableOperations.CREATE]
+
+        self.handle_query(sql_create)
+        self.insert_into_table(
+            str(table.value),
+            csv_path="dataset/olist_geolocation_dataset.csv",
         )

@@ -14,22 +14,6 @@ def handle_table(
     connection.table(table_name).show()
 
 
-def handle_geolocation(connection: duckdb.DuckDBPyConnection):
-    table_name = "geolocation"
-    csv_path = "dataset/olist_geolocation_dataset.csv"
-
-    sql_create = f"""CREATE TABLE IF NOT EXISTS {table_name} (
-        geolocation_zip_code_prefix VARCHAR,
-        geolocation_lat FLOAT,
-        geolocation_lng FLOAT,
-        geolocation_city VARCHAR,
-        geolocation_state VARCHAR(5),
-        UNIQUE (geolocation_lat, geolocation_lng)
-    )
-    """
-    return handle_table(connection, table_name, sql_create, csv_path)
-
-
 def handle_order_payments(connection: duckdb.DuckDBPyConnection):
     table_name = "order_payments"
     csv_path = "dataset/olist_order_payments_dataset.csv"
@@ -55,19 +39,6 @@ def handle_order_reviews(connection: duckdb.DuckDBPyConnection):
             review_comment_message VARCHAR(5000) NULL,
             review_creation_date TIMESTAMP,
             review_answer_timestamp TIMESTAMP
-        )
-    """
-    return handle_table(connection, table_name, sql_create, csv_path)
-
-
-def handle_sellers(connection: duckdb.DuckDBPyConnection):
-    table_name = "sellers"
-    csv_path = "dataset/olist_sellers_dataset.csv"
-    sql_create = f"""CREATE TABLE IF NOT EXISTS {table_name} (
-            seller_id VARCHAR(100) PRIMARY KEY,
-            seller_zip_code_prefix VARCHAR(10),
-            seller_city VARCHAR(100),
-            seller_state VARCHAR(5)
         )
     """
     return handle_table(connection, table_name, sql_create, csv_path)
