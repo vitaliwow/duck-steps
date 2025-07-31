@@ -10,28 +10,18 @@ FACTS_QUERIES = {
                 product_id VARCHAR(36),
                 seller_id VARCHAR(36),
                 customer_unique_id VARCHAR(36),
-                price DECIMAL(10, 2),
-                order_status VARCHAR(20),
-                order_delivered_customer_date DATE,
-                order_purchase_timestamp TIMESTAMP,
-                product_category_name_english VARCHAR(100),
-                seller_state VARCHAR(10),
+                price DECIMAL(10, 2)
             )
             """,
         TableOperations.INSERT: f"""
             INSERT INTO {TableNames.FACTS_ORDER_ITEMS.value}
             SELECT
-                ordi.order_id,
+                ord.order_id,
                 ordi.order_item_id,
                 ordi.product_id,
                 ordi.seller_id,
                 cust.customer_unique_id,
-                ordi.price,
-                ord.order_status,
-                ord.order_delivered_customer_date,
-                ord.order_purchase_timestamp,
-                cat.product_category_name_english,
-                sel.seller_state
+                ordi.price
             FROM {TableNames.SRC_ORDER_ITEMS.value} as ordi
             LEFT JOIN {TableNames.SRC_ORDERS.value} as ord
                 ON ord.order_id = ordi.order_id
@@ -39,10 +29,6 @@ FACTS_QUERIES = {
                 ON ord.customer_id = cust.customer_id
             LEFT JOIN {TableNames.SRC_PRODUCTS.value} as prod
                 ON ordi.product_id = prod.product_id
-            LEFT JOIN {TableNames.SRC_PRODUCTS_CATEGORIES_TRANSLATIONS.value} as cat
-                ON prod.product_category_name = cat.product_category_name
-            LEFT JOIN {TableNames.SRC_SELLERS.value} as sel
-                ON ordi.seller_id = sel.seller_id
             """
     }
 }

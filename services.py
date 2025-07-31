@@ -5,6 +5,7 @@ import duckdb
 from enum_models import TableNames, TableOperations
 from queries import (
     ANALYTIC_QUERIES,
+    DIMENSION_QUERIES,
     FACTS_QUERIES,
     SOURCE_QUERIES,
     STAGING_QUERIES,
@@ -38,6 +39,11 @@ class HandleOlist:
         insert_facts_table_query = FACTS_QUERIES[TableNames.FACTS_ORDER_ITEMS][TableOperations.INSERT]
         self.handle_query(insert_facts_table_query)
 
+    def create_dimensions_tables(self) -> None:
+        self.create_order_data_table()
+        self.create_product_data_table()
+        self.create_seller_data_table()
+
     def create_staging_tables(self) -> None:
         self.create_staging_customer_deliveries()
 
@@ -48,14 +54,34 @@ class HandleOlist:
         self.create_table_from_select(select_query, table.value)
 
     def create_analytical_tables(self) -> None:
-        self.create_most_valuable_customers()
-        self.create_three_month_user_purchases()
-        self.create_top_ten_products()
-        self.create_raise_sales_gradient()
-        self.create_cumulative_product_sales()
-        self.create_daily_rebates()
-        self.create_avg_comparison()
-        self.create_sellers_rating()
+        self.create_most_valuable_customers() # 1
+        self.create_three_month_user_purchases() # 2
+        self.create_between_orders_period() # 3
+        self.create_top_ten_products() # 4
+        self.create_raise_sales_gradient() # 5
+        self.create_cumulative_product_sales() # 6
+        self.create_daily_rebates() # 7
+        self.create_avg_comparison() # 8
+        self.create_sellers_rating() # 9
+        self.create_trends_for_product_by_seller() # 10
+
+    def create_order_data_table(self) -> None:
+        table = TableNames.DIMENSION_ORDER_DATA
+        select = DIMENSION_QUERIES[table]
+
+        self.create_table_from_select(select_query=select, table_name=table.value)
+
+    def create_product_data_table(self) -> None:
+        table = TableNames.DIMENSION_PRODUCT_DATA
+        select = DIMENSION_QUERIES[table]
+
+        self.create_table_from_select(select_query=select, table_name=table.value)
+
+    def create_seller_data_table(self) -> None:
+        table = TableNames.DIMENSION_SELLER_DATA
+        select = DIMENSION_QUERIES[table]
+
+        self.create_table_from_select(select_query=select, table_name=table.value)
 
     def create_most_valuable_customers(self) -> None:
         table = TableNames.ANALYTICS_MOST_VALUABLE_CUSTOMERS
@@ -65,6 +91,18 @@ class HandleOlist:
 
     def create_three_month_user_purchases(self) -> None:
         table = TableNames.ANALYTICS_ROLLING_QUARTERS
+        select_query = ANALYTIC_QUERIES[table]
+
+        self.create_table_from_select(select_query, table.value)
+
+    def create_between_orders_period(self) -> None:
+        table = TableNames.ANALYTICS_ORDERS_AVG_PERIOD
+        select_query = ANALYTIC_QUERIES[table]
+
+        self.create_table_from_select(select_query, table.value)
+
+    def create_trends_for_product_by_seller(self) -> None:
+        table = TableNames.ANALYTICS_TREND_PRODUCTS_BY_SELLER
         select_query = ANALYTIC_QUERIES[table]
 
         self.create_table_from_select(select_query, table.value)
@@ -122,7 +160,7 @@ class HandleOlist:
 
         self.create_table_from_select(select_query, table.value)
 
-    def insert_into_table(self, table_name: str, csv_path: str, on_conflict: str | None = None) -> None:
+    def insert_into_table(self, table_name: str, csv_path: str) -> None:
         insert_query = f"""
             INSERT INTO {table_name} 
                 SELECT * FROM read_csv('{csv_path}')

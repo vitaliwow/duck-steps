@@ -13,8 +13,8 @@ if __name__ == "__main__":
         # create facts table and fill it
         handler.create_facts_table()
 
-        # create staging layer tables
-        handler.create_staging_tables()
+        # create dimensions tables
+        handler.create_dimensions_tables()
 
         # create analytical tables
         handler.create_analytical_tables()

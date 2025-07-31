@@ -12,12 +12,18 @@ class TableNames(StrEnum):
     SRC_PRODUCTS_CATEGORIES_TRANSLATIONS = "src_products_categories_translations"
     # Facts tables
     FACTS_ORDER_ITEMS = "facts_order_items"
+    # Dimensions tables
+    DIMENSION_ORDER_DATA = "dimension_order_data"
+    DIMENSION_PRODUCT_DATA = "dimension_product_data"
+    DIMENSION_SELLER_DATA = "dimension_seller_data"
     # Staging tables
     STAGING_CUSTOMERS_DELIVERIES = "staging_customers_deliveries"
     # Analytics tables
     ANALYTICS_MOST_VALUABLE_CUSTOMERS = "analytics_most_valuable_customers"
     ANALYTICS_ROLLING_QUARTERS = "analytics_rolling_quarters"
     ANALYTICS_TOP_PRODUCTS = "analytics_top_products"
+    ANALYTICS_ORDERS_AVG_PERIOD = "analytics_orders_avg_period"
+    ANALYTICS_TREND_PRODUCTS_BY_SELLER = "analytics_orders_avg_period"
     ANALYTICS_TOP_TEN_PRODUCTS_Q_SALES = "analytics_top_ten_products_q_sales"
     ANALYTICS_TOP_TEN_PRODUCTS_Q_BY_CATEGORY = "analytics_top_ten_products_q_by_category"
     ANALYTICS_RAISE_SALES_GRADIENT = "analytics_raise_sales_gradient"
